@@ -116,6 +116,8 @@ class Cache(object):
         "cache_details": "seek/cache_details.aspx",
         "print_page": "seek/cdpf.aspx",
         "log_page": "play/geocache/{wp}/log",
+        "set_personal_note": "seek/cache_details.aspx/SetUserCacheNote",
+        "set_coordinates": "seek/cache_details.aspx/SetUserCoordinate",
     }
 
     @classmethod
@@ -198,6 +200,8 @@ class Cache(object):
             "guid",
             "visited",
             "log_counts",
+            "country",
+            "personal_note",
         }
 
         for name in known_kwargs:
@@ -445,6 +449,20 @@ class Cache(object):
         """
         return self._difficulty
 
+    @property
+    @lazy_loaded
+    def personal_note(self):
+        """The cache personal note.
+
+        :type: :class:`str`
+        """
+        return self._personal_note
+
+    @personal_note.setter
+    def personal_note(self, note):
+        note = str(note).strip()
+        self._personal_note = note
+
     @difficulty.setter
     def difficulty(self, difficulty):
         if isinstance(difficulty, str):
@@ -674,6 +692,19 @@ class Cache(object):
     def _trackable_page_url(self, trackable_page_url):
         self.__trackable_page_url = trackable_page_url
 
+    @property
+    @lazy_loaded
+    def country(self):
+        """The cache country.
+
+        :type: :class:`str`
+        """
+        return self._country
+
+    @country.setter
+    def country(self, country):
+        self._country = country
+
     def load(self):
         """Load all possible cache details.
 
@@ -824,6 +855,13 @@ class Cache(object):
 
         # Log counts
         self.log_counts = Cache._get_log_counts_from_cache_details(root)
+
+        country = root.find(id="ctl00_ContentBody_Location").text
+        if country.startswith("In "):
+            country = country[3:]
+        self.country = country
+
+        self.personal_note = root.find(id='srOnlyCacheNote').text
 
         logging.debug("Cache loaded: {}".format(self))
 
@@ -1163,6 +1201,29 @@ class Cache(object):
         self.geocaching._request(self._get_log_page_url(), method="POST", data=post)
 
         self.found_status = log
+
+    def update_personal_note(self, note):
+        """Update the personal cache note.
+
+        :param str note: New value for the note
+        """
+        self.geocaching._request(self._urls["set_personal_note"], method='POST', json={"dto": {"et": note, "ut": self._logbook_token}})
+        self._personal_note = note
+
+    def update_coordinates(self, location):
+        """Update the cache's coordinates.
+
+        :param str location: New value for the location
+        """
+        # TODO: Add reset coordinates capability
+        # TODO: Update the cache's `location` and `original_location` as needed
+        if isinstance(location, str):
+            location = Point.from_string(location)
+        elif not isinstance(location, Point):
+            raise errors.ValueError("Passed object is not Point instance nor string containing coordinates.")
+
+        self.geocaching._request(self._urls["set_coordinates"], method='POST', json={"dto": {"data": {"lat": location.latitude, "lng": location.longitude}, "ut": self._logbook_token}})
+
 
 
 class Waypoint(object):
