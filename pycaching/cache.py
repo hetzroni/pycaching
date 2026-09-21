@@ -796,7 +796,8 @@ class Cache(object):
         pm_only_warning = root.find("p", "Warning NoBottomSpacing")
         self.pm_only = pm_only_warning and ("Premium Member Only" in pm_only_warning.text) or False
 
-        attributes_widget, inventory_widget, *_ = root.find_all("div")
+        attributes_widget = root.find("div", "WidgetBody")
+        inventory_widget = root.find(id="trackableInventory")
 
         hidden = cache_details.find("div", "minorCacheDetails").find_all("div")[1].text
         self.hidden = parse_date(hidden.split(":")[-1])
